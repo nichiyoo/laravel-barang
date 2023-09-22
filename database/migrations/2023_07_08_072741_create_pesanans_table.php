@@ -15,12 +15,10 @@ return new class extends Migration
     {
         Schema::create('pesanans', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('barang_id')
-            ->references('id')
-            ->on('barangs')
-            ->onUpdate('cascade');
+            $table->foreignId('barang_id')->constrained('barangs')->onDelete('cascade');
             $table->integer('jumlah');
-            $table->integer('jumlah_harga');
+            $table->decimal('total', 8, 2);
+            $table->string('status');
             $table->timestamps();
         });
     }

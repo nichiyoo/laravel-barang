@@ -1,27 +1,31 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
+
 use App\Http\Controllers\BarangController;
 use App\Http\Controllers\PesananController;
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
 |
 | Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider within a group which
-| contains the "web" middleware group. Now create something great!
+| routes are loaded by the RouteServiceProvider and all of them will
+| be assigned to the "web" middleware group. Make something great!
 |
 */
 
-Route::get('/', [BarangController::class,'utama']);
 
-Route::get('/tambahdata', function () {
-    return view('input'); //indexadmin
+Route::middleware('auth')->group(function () {
+    Route::resource('barangs', BarangController::class);
+    Route::resource('pesanans', PesananController::class);
+    Route::post('order/{barang}', [PesananController::class, 'order'])->name('pesanans.order');
+    Route::get('checkout', [PesananController::class, 'checkout'])->name('pesanans.checkout');
 });
 
-Route::get('/viewbarang', function () {
-    return view('viewbarang'); //indexadmin
+Auth::routes();
+Route::get('/', function () {
+    return redirect()->route('barangs.index');
 });
-
-Route::resource('Barang', BarangController::class);

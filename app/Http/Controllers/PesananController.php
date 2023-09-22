@@ -2,8 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Barang;
+use App\Models\Pesanan;
+use Illuminate\Auth\Events\Validated;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class PesananController extends Controller
 {
@@ -14,10 +18,9 @@ class PesananController extends Controller
      */
     public function index()
     {
-        $data = Barang::all();
-
-        return view('viewbarang', compact(
-            'data'
+        $pesanans = Pesanan::orderBy('created_at', 'DESC')->with('barang')->paginate(8);
+        return view('pesanans.index', compact(
+            'pesanans'
         ));
     }
 
@@ -31,46 +34,69 @@ class PesananController extends Controller
         //
     }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function store(Request $request)
+
+    public function order(string $id, Request $request): RedirectResponse
     {
-        //
+        // validate jumlah
+        Validator::make($request->all(), [
+            'jumlah' => 'required|numeric|min:1'
+        ])->validate();
+
+        // validate stok barang
+        $barang = Barang::findOrFail($id);
+        if ($barang->stok == 0)
+            return redirect()->back()->with('error', 'Stok habis');
+
+        // validate stok > jumlah
+        if ($barang->stok < $request->jumlah) {
+            return redirect()->back()->with('error', 'Permintaan melebihi stok. silahkan sesuaikan dengan stok');
+        }
+
+        // create pesanan
+        Pesanan::create([
+            'barang_id' => $barang->id,
+            'jumlah' => $request->jumlah,
+            'total' => $request->jumlah * $barang->harga_jual,
+            'status' => 'PENDING'
+        ]);
+
+        // update stok barang
+        $barang->update([
+            'stok' => $barang->stok - $request->jumlah
+        ]);
+
+        // redirect to pesanan.index
+        return redirect()->route('pesanans.index')->with('success', 'Berhasil menambahkan pesanan');
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
+    public function checkout()
+    {
+        // get all pending pesanan
+        $pendings = Pesanan::where('status', 'PENDING')->get();
+        $count = count($pendings);
+
+        // validate if there is no pending pesanan
+        if ($count <= 0) {
+            return redirect()->route('pesanans.index')->with('error', 'Tidak ada data yang pending');
+        }
+
+        // update all pending pesanan to success
+        Pesanan::where('status', 'PENDING')->update(['status' => 'SUCCESS']);
+        return redirect()->route('pesanans.index')->with('success', 'Berhasil mengcheckout sejumlah ' . $count . ' Barang');
+    }
+
     public function show($id)
     {
         //
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
+
     public function edit($id)
     {
         //
     }
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
+
     public function update(Request $request, $id)
     {
         //
